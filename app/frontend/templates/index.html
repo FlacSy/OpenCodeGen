@@ -6,129 +6,86 @@
   <title>OpenCodeGen</title>
 
   <!-- Стили CodeMirror и тема -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
-  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/theme/dracula.min.css">
+  <link rel="stylesheet" href="/static/styles.css">
+
   <!-- Скрипты CodeMirror -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.58.3/mode/clike/clike.min.js"></script>
 
   <!-- Vue и Axios -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .input-container, .output-container {
-      margin-bottom: 20px;
-    }
-    .CodeMirror {
-      border: 1px solid #ccc;
-      height: auto;
-    }
-    button {
-      padding: 10px 20px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    .error {
-      color: red;
-      margin-top: 10px;
-    }
-  </style>
 </head>
 <body>
-  <div id="app" class="container">
-    <h1>Генератор Python кода</h1>
+  <div class="github-buttons-container">
+    <a href="https://github.com/FlacSy/OpenCodeGen" target="_blank" class="github-button">
+      <button>Source Code</button>
+    </a>
+    
+    <a href="https://github.com/FlacSy/" target="_blank" class="github-button">
+      <button>Author</button>
+    </a>
+  </div>  
 
-    <!-- Редактор для ввода OpenAPI (JSON) -->
-    <div class="input-container">
-      <h3>Введите OpenAPI описание (JSON):</h3>
-      <textarea id="openapi-input"></textarea>
+  <div id="app" class="container">
+    <h1>OpenCodeGen</h1>
+
+    <!-- Выбор языка -->
+    <div>
+      <label for="language">Выберите язык:</label>
+      <select v-model="selectedLanguage">
+        <option value="python">Python</option>
+        <option value="typescript">TypeScript</option>
+        <option value="rust">Rust</option>
+        <option value="java">Java</option>
+      </select>
+    </div>
+
+    <!-- Контейнер с редакторами и кнопкой -->
+    <div class="editor-container">
+      <!-- Редактор для ввода OpenAPI -->
+      <div class="input-container">
+        <h3>Введите OpenAPI описание:</h3>
+        <textarea id="openapi-input"></textarea>
+      </div>
+
+      <!-- Редактор для вывода сгенерированного кода -->
+      <div class="output-container">
+        <div class="output-container-head">
+          <h3>Сгенерированный код:</h3>
+          <!-- Кнопка для копирования в буфер обмена -->
+          <button @click="copyToClipboard" class="copy-button">
+            <img src="https://cdn-icons-png.flaticon.com/512/3388/3388549.png" alt="Копировать в буфер обмена" class="copy-button-image">
+          </button>  
+        </div>
+        <textarea id="generated-code-output" readonly></textarea>
+                     
+      </div>
+    </div>
+
+    <div v-if="copyMessageVisible" class="copy-message">
+      Код скопирован в буфер обмена!
     </div>
 
     <!-- Кнопка для генерации кода -->
     <button @click="generateCode">Генерировать код</button>
 
-    <!-- Редактор для вывода Python кода. Элемент только появляется после успешного запроса -->
-    <div v-if="generatedCode" class="output-container">
-      <h3>Сгенерированный Python код:</h3>
-      <textarea id="generated-code-output" readonly></textarea>
-    </div>
-
     <!-- Сообщения об ошибках -->
-    <div v-if="errorMessage" class="error">{{ errorMessage }}</div>
+    <div v-if="errorMessageVisible" class="error-message">
+      Произошла ошибка!
+    </div>
+    
+  <div id="drop-zone" 
+    @dragover.prevent="highlight" 
+    @dragleave.prevent="unhighlight" 
+    @drop.prevent="handleDrop">
+  <p>Перетащите сюда ваш OpenAPI-файл .json</p>
   </div>
 
-  <script>
-    new Vue({
-      el: '#app',
-      data: {
-        openapiInput: '',
-        generatedCode: '',
-        errorMessage: '',
-        inputEditor: null,
-        outputEditor: null,
-      },
-      mounted() {
-        this.inputEditor = CodeMirror.fromTextArea(document.getElementById('openapi-input'), {
-          lineNumbers: true,
-          mode: 'application/json',
-          theme: 'dracula',
-          indentUnit: 2,
-        });
-      },
-      methods: {
-        async generateCode() {
-            try {
-            const response = await axios.post('/generate', {
-                openapi: this.inputEditor.getValue()
-            });
-
-            console.log('Ответ от сервера:', response.data);
-
-            if (response.data && response.data.generated_code) {
-                this.generatedCode = response.data.generated_code;
-
-                if (this.outputEditor) {
-                this.outputEditor.toTextArea();
-                }
-
-                this.$nextTick(() => {
-                this.outputEditor = CodeMirror.fromTextArea(document.getElementById('generated-code-output'), {
-                    lineNumbers: true,
-                    mode: 'python',
-                    theme: 'dracula',
-                    readOnly: true,
-                    indentUnit: 2,
-                    viewportMargin: Infinity,
-                });
-
-                this.outputEditor.setValue(this.generatedCode);
-                });
-            } else {
-                this.errorMessage = 'Ошибка: Нет сгенерированного кода в ответе';
-            }
-            } catch (error) {
-            console.error('Ошибка при запросе:', error);
-            this.errorMessage = error.response ? error.response.data.message : error.message;
-            }
-        },
-        },
-    });
-  </script>
+  <script src="/static/scripts/app.js" defer></script>
 </body>
 </html>
