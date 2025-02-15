@@ -8,22 +8,22 @@
 ## Стек технологий
 
 <img src="https://img.shields.io/badge/FastAPI-%231FA2A0.svg?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" style="vertical-align: middle;"/>
-— Фреймворк для создания API на Python.
+Фреймворк для создания API на Python.
 
 ---
 
 <img src="https://img.shields.io/badge/Rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white" alt="Rust" style="vertical-align: middle;"/>
-— Используется для конвертации OpenAPI в Python объекты через PyO3.
+Используется для конвертации OpenAPI в Python объекты через PyO3.
 
 ---
 
 <img src="https://img.shields.io/badge/Vue.js-%234FC08D.svg?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue.js" style="vertical-align: middle;"/>
-— Фреймворк для создания фронтенда.
+Фреймворк для создания фронтенда.
 
 ---
 
 <img src="https://img.shields.io/badge/Maturin-%2300A9C4.svg?style=for-the-badge&logo=python&logoColor=white" alt="Maturin" style="vertical-align: middle;"/>
-— Инструмент для работы с Python-Rust связкой через PyO3.
+Инструмент для работы с Python-Rust связкой через PyO3.
 
 
 ## Установка и запуск
