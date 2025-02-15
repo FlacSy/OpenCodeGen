@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use serde_json::Value;
 
 
 #[derive(Deserialize, Serialize)]
@@ -19,42 +20,165 @@ struct Schema {
     properties: Option<HashMap<String, Property>>,
 }
 
-#[derive(Deserialize, Serialize)]
-struct Property {
-    r#type: Option<serde_json::Value>,
-    items: Option<Box<Property>>,
-    r#ref: Option<String>,
-    default: Option<serde_json::Value>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum OneOfVariant {
+    Null,
+    Ref { #[serde(rename = "$ref")] r#ref: String },
+    Object(Property),
+    Type(Value),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Property {
+    #[serde(rename = "type", default)]
+    pub r#type: Option<serde_json::Value>,
+
+    #[serde(rename = "$ref", default)]
+    pub r#ref: Option<String>,
+
+    #[serde(default)]
+    pub format: Option<String>,
+
+    #[serde(default)]
+    pub items: Option<Box<Property>>,
+
+    #[serde(rename = "oneOf")]
+    one_of: Option<Vec<OneOfVariant>>,
+
+    #[serde(default)]
+    pub description: Option<String>,
+
+    #[serde(default)]
+    pub default: Option<String>,
+
+}
 fn parse_property_py(prop: &Property, schemas: &HashMap<String, Schema>) -> String {
     if let Some(r#ref) = &prop.r#ref {
         return format!("'{}'", r#ref.split('/').last().unwrap());
     }
 
-    if prop.r#type.is_none() {
-        return "Any".to_string();
+    if let Some(one_of) = &prop.one_of {
+        let mut types: Vec<String> = Vec::new();
+        let mut has_null = false;
+        for variant in one_of {
+            match variant {
+                OneOfVariant::Ref { r#ref } => {
+                    types.push(format!("'{}'", r#ref.split('/').last().unwrap()));
+                },
+                OneOfVariant::Object(obj_prop) => {
+                    let t = parse_property_py(obj_prop, schemas);
+                    if t == "None" {
+                        has_null = true;
+                    } else {
+                        types.push(t);
+                    }
+                },
+                OneOfVariant::Type(value) => {
+                    if let Some(s) = value.as_str() {
+                        if s == "null" {
+                            has_null = true;
+                        } else {
+                            let t = match s {
+                                "integer" => "int".to_string(),
+                                "string" => "str".to_string(),
+                                "boolean" => "bool".to_string(),
+                                "number" => "float".to_string(),
+                                "object" => "dict".to_string(),
+                                "array" => {
+                                    if let Some(items) = &prop.items {
+                                        format!("List[{}]", parse_property_py(items, schemas))
+                                    } else {
+                                        "List[Any]".to_string()
+                                    }
+                                },
+                                _ => s.to_string(),
+                            };
+                            types.push(t);
+                        }
+                    }
+                },
+                OneOfVariant::Null => {
+                    has_null = true;
+                },
+            }
+        }
+        types.sort();
+        types.dedup();
+        if has_null {
+            if types.len() == 1 {
+                return format!("Union[None, {}]", types[0]);
+            } else if types.is_empty() {
+                return "None".to_string();
+            } else {
+                return format!("Union[None, {}]", types.join(", "));
+            }
+        } else {
+            if types.len() == 1 {
+                return types[0].clone();
+            } else {
+                return format!("Union[{}]", types.join(", "));
+            }
+        }
     }
 
-    let prop_type = match &prop.r#type {
-        Some(serde_json::Value::String(s)) => s.clone(),
-        Some(serde_json::Value::Array(arr)) if arr.len() > 0 => arr[0].as_str().unwrap_or_default().to_string(),
-        _ => "Any".to_string(),
-    };
-
-    if prop_type == "array" {
-        let item_type = parse_property_py(&prop.items.as_ref().unwrap(), schemas);
-        return format!("List[{}]", item_type);
+    if let Some(serde_json::Value::Array(arr)) = &prop.r#type {
+        let mut types: Vec<String> = Vec::new();
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                if s == "null" {
+                    types.push("None".to_string());
+                } else if s == "array" {
+                    if let Some(items) = &prop.items {
+                        let item_type = parse_property_py(items, schemas);
+                        types.push(format!("List[{}]", item_type));
+                    } else {
+                        types.push("List[Any]".to_string());
+                    }
+                } else {
+                    types.push(match s {
+                        "integer" => "int".to_string(),
+                        "string" => "str".to_string(),
+                        "boolean" => "bool".to_string(),
+                        "number" => "float".to_string(),
+                        "object" => "dict".to_string(),
+                        _ => s.to_string(),
+                    });
+                }
+            }
+        }
+        types.sort();
+        types.dedup();
+        if types.len() == 1 {
+            return types[0].clone();
+        } else {
+            return format!("Union[{}]", types.join(", "));
+        }
     }
 
-    match prop_type.as_str() {
-        "integer" => "int".to_string(),
-        "string" => "str".to_string(),
-        "boolean" => "bool".to_string(),
-        "number" => "float".to_string(),
-        "object" => "dict".to_string(),
-        _ => "Any".to_string(),
+    if let Some(serde_json::Value::String(s)) = &prop.r#type {
+        if s == "null" {
+            return "None".to_string();
+        }
+        if s == "array" {
+            if let Some(items) = &prop.items {
+                let item_type = parse_property_py(items, schemas);
+                return format!("List[{}]", item_type);
+            } else {
+                return "List[Any]".to_string();
+            }
+        }
+        return match s.as_str() {
+            "integer" => "int".to_string(),
+            "string" => "str".to_string(),
+            "boolean" => "bool".to_string(),
+            "number" => "float".to_string(),
+            "object" => "dict".to_string(),
+            _ => "Any".to_string(),
+        };
     }
+
+    "Any".to_string()
 }
 
 fn generate_model(name: &str, schema: &Schema, schemas: &HashMap<String, Schema>) -> String {
@@ -67,6 +191,7 @@ fn generate_model(name: &str, schema: &Schema, schemas: &HashMap<String, Schema>
             } else {
                 "".to_string()
             };
+            
             fields.push(format!("    {}: {}{}", field_name, py_type, default_value));
         }
     }
@@ -89,38 +214,68 @@ fn generate_python_code(schemas: &HashMap<String, Schema>) -> String {
         generated_classes.push(generate_model(name, schema, schemas));
     }
 
-    let imports = "from typing import Any, List\nfrom pydantic import BaseModel\n\n";
+    let imports = "from typing import Any, List, Union\nfrom pydantic import BaseModel\n\n";
     format!("{}{}", imports, generated_classes.join("\n\n"))
 }
 
 fn parse_property_ts(prop: &Property, schemas: &HashMap<String, Schema>) -> String {
     if let Some(r#ref) = &prop.r#ref {
-        return format!("'{}'", r#ref.split('/').last().unwrap());
+        return r#ref.split('/').last().unwrap().to_string();
     }
 
-    if prop.r#type.is_none() {
-        return "any".to_string();
+    if let Some(one_of) = &prop.one_of {
+        let mut types: Vec<String> = Vec::new();
+        for variant in one_of {
+            match variant {
+                OneOfVariant::Ref { r#ref } => {
+                    types.push(r#ref.split('/').last().unwrap().to_string());
+                },
+                OneOfVariant::Object(obj_prop) => {
+                    let t = parse_property_ts(obj_prop, schemas);
+                    types.push(t);
+                },
+                OneOfVariant::Type(value) => {
+                    if let Some(s) = value.as_str() {
+                        types.push(match s {
+                            "integer" => "number".to_string(),
+                            "string" => "string".to_string(),
+                            "boolean" => "boolean".to_string(),
+                            "number" => "number".to_string(),
+                            "object" => "Record<string, any>".to_string(),
+                            _ => "any".to_string(),
+                        });
+                    }
+                },
+                OneOfVariant::Null => {
+                    types.push("null".to_string());
+                },
+            }
+        }
+        types.sort();
+        types.dedup();
+        return types.join(" | ");
     }
 
-    let prop_type = match &prop.r#type {
-        Some(serde_json::Value::String(s)) => s.clone(),
-        Some(serde_json::Value::Array(arr)) if arr.len() > 0 => arr[0].as_str().unwrap_or_default().to_string(),
-        _ => "any".to_string(),
-    };
-
-    if prop_type == "array" {
-        let item_type = parse_property_ts(&prop.items.as_ref().unwrap(), schemas);
-        return format!("Array<{}>", item_type);
+    if let Some(serde_json::Value::String(s)) = &prop.r#type {
+        if s == "array" {
+            if let Some(items) = &prop.items {
+                let item_type = parse_property_ts(items, schemas);
+                return format!("Array<{}>", item_type);
+            } else {
+                return "Array<any>".to_string();
+            }
+        }
+        return match s.as_str() {
+            "integer" => "number".to_string(),
+            "string" => "string".to_string(),
+            "boolean" => "boolean".to_string(),
+            "number" => "number".to_string(),
+            "object" => "Record<string, any>".to_string(),
+            _ => "any".to_string(),
+        };
     }
-
-    match prop_type.as_str() {
-        "integer" => "number".to_string(),
-        "string" => "string".to_string(),
-        "boolean" => "boolean".to_string(),
-        "number" => "number".to_string(),
-        "object" => "Record<string, any>".to_string(),
-        _ => "any".to_string(),
-    }
+    
+    "any".to_string()
 }
 
 fn generate_ts_code(schemas: &HashMap<String, Schema>) -> String {
