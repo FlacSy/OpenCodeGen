@@ -1,6 +1,14 @@
 body {
   font-family: 'Arial', sans-serif;
-  background-color: #181818;
+  background: linear-gradient(135deg, 
+    #190B33 0%,
+    #190B33 30%,
+    #0B1A40 40%,
+    #0B1A40 60%,
+    #0A2A21 70%,
+    #0A2A21 100%
+  );
+  background-attachment: fixed;
   color: #f1f1f1;
   margin: 0;
   padding: 0;
@@ -12,12 +20,28 @@ body {
   padding: 20px;
 }
 
+.page-name-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.page-name {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 10px 20px;
+}
+
 h1 {
   font-size: 36px;
   color: transparent;
   background: linear-gradient(45deg, #7a14ff, #9729ff, #daa0ff, #9729ff, #7a14ff);
   -webkit-background-clip: text;
+  background-clip: text;
   text-align: center;
+  margin: 0;
 }
 
 h3 {
@@ -259,4 +283,36 @@ button, .error {
 
 .download-button:focus {
   outline: none;
+}
+
+.footer {
+  background-color: #222;
+  color: #f1f1f1;
+  padding: 20px 0;
+  margin-top: 40px;
+  text-align: center;
+  border-top: 1px solid #444;
+}
+
+.footer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.footer-link {
+  color: #9b4dff;
+  text-decoration: none;
+  font-size: 16px;
+  transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+  color: #7a38d8;
 }
