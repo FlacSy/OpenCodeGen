@@ -58,13 +58,71 @@ new Vue({
         if (response.data && response.data.body && response.data.body.generated_code) {
           this.generatedCode = response.data.body.generated_code;
           this.outputEditor.setValue(this.generatedCode);
+          if (this.selectedLanguage === 'python' || this.selectedLanguage === 'py') {
+            const zipButton = document.getElementById('generateZip');
+            if (!zipButton) {
+                console.log('No zip button');
+                return;
+            }
+            zipButton.style.display = "flex";
+        }        
         } else {
           this.errorMessage = 'Ошибка: Нет сгенерированного кода в ответе';
           this.showErrorMessage();
         }
       } catch (error) {
         console.error('Ошибка при запросе:', error);
-        this.errorMessage = error.response ? error.response.data.message : error.message;
+        this.showErrorMessage();
+      }
+    },
+    async generateZip() {
+      try {
+        const input = this.inputEditor.getValue();
+        if (input.trim() === '') {
+          this.showErrorMessage();
+          return;
+        }
+        
+        if (this.selectedLanguage !== 'python' && this.selectedLanguage !== 'py') {
+          this.showErrorMessage();
+          console.log(this.selectedLanguage);
+          return;
+        }
+    
+        const jsonRegex = /^[\],:{}\s]*$/;
+        if (!jsonRegex.test(input.replace(/\\["\\\/bfnrtu]/g, '@').replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']')
+          .replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
+          this.errorMessage = 'Неверный формат JSON';
+          this.showErrorMessage();
+          return;
+        }
+    
+        try {
+          const response = await axios.post('/zip-file', {
+            openapi: this.inputEditor.getValue(),
+            language: 'python',
+            code: this.outputEditor.getValue(),
+          }, {
+            headers: { 'Content-Type': 'application/json' },
+            responseType: 'blob',
+          });
+
+          if (response.status === 200) {
+            const zipBlob = response.data;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = 'generated.zip';
+            link.click();
+            
+            console.log('ZIP-файл успешно загружен');
+          }
+        } catch (error) {
+          console.error('Ошибка при запросе:', error.response ? error.response.data : error.message);
+        }
+    
+      } catch (error) {
+        console.error('Ошибка при запросе:', error);
         this.showErrorMessage();
       }
     },

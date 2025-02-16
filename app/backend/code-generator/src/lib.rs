@@ -18,6 +18,7 @@ struct Components {
 #[derive(Deserialize, Serialize)]
 struct Schema {
     properties: Option<HashMap<String, Property>>,
+    description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -186,13 +187,12 @@ fn generate_model(name: &str, schema: &Schema, schemas: &HashMap<String, Schema>
     if let Some(properties) = &schema.properties {
         for (field_name, field_info) in properties {
             let py_type = parse_property_py(field_info, schemas);
-            let default_value = if let Some(default) = &field_info.default {
-                format!(" = {}", default)
+            let field_line = if let Some(desc) = &field_info.description {
+                format!("    {}: {} = Field(..., description=\"{}\")", field_name, py_type, desc)
             } else {
-                "".to_string()
+                format!("    {}: {}", field_name, py_type)
             };
-            
-            fields.push(format!("    {}: {}{}", field_name, py_type, default_value));
+            fields.push(field_line);
         }
     }
 
@@ -200,11 +200,15 @@ fn generate_model(name: &str, schema: &Schema, schemas: &HashMap<String, Schema>
         fields.push("    pass".to_string());
     }
 
-    let class_str = format!(
-        "class {}(BaseModel):\n{}",
-        name,
-        fields.join("\n")
-    );
+    let mut class_str = format!("class {}(BaseModel):\n{}", name, fields.join("\n"));
+
+    if let Some(description) = &schema.description {
+        let config_block = format!(
+            "\n\n    class Config:\n        json_schema_extra = {{\n            \"description\": \"{}\"\n        }}",
+            description
+        );
+        class_str.push_str(&config_block);
+    }
     class_str
 }
 
@@ -214,7 +218,7 @@ fn generate_python_code(schemas: &HashMap<String, Schema>) -> String {
         generated_classes.push(generate_model(name, schema, schemas));
     }
 
-    let imports = "from typing import Any, List, Union\nfrom pydantic import BaseModel\n\n";
+    let imports = "from typing import Any, List, Union\nfrom pydantic import BaseModel, Field\n\n";
     format!("{}{}", imports, generated_classes.join("\n\n"))
 }
 

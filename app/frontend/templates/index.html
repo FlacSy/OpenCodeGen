@@ -58,12 +58,17 @@
         <div class="output-container-head">
           <h3>Сгенерированный код:</h3>
           <!-- Кнопка для копирования в буфер обмена -->
-          <button @click="copyToClipboard" class="copy-button">
-            <img src="https://cdn-icons-png.flaticon.com/512/3388/3388549.png" alt="Копировать в буфер обмена" class="copy-button-image">
-          </button>  
+          <div class="buttons-output">
+            <button @click="generateZip" style="display: none;" id="generateZip" class="download-button">
+              <img src="https://cdn-icons-png.flaticon.com/64/3502/3502477.png" alt="Скачать zip" class="download-zip-image">
+            </button>
+            <button @click="copyToClipboard" class="copy-button">
+              <img src="https://cdn-icons-png.flaticon.com/64/3388/3388549.png" alt="Копировать в буфер обмена" class="copy-button-image">
+            </button> 
+          </div> 
         </div>
         <textarea id="generated-code-output" readonly></textarea>
-                     
+              
       </div>
     </div>
 
