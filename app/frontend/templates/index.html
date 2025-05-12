@@ -19,18 +19,30 @@
   <!-- Vue и Axios -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <!-- Локализация -->
+  <script src="/static/js/i18n/i18n.js"></script>
 </head>
 <body>
   <div id="app" class="container">
+    <!-- Переключатель языков -->
+    <div class="language-switcher">
+      <select onchange="setLanguage(this.value); localStorage.setItem('language', this.value);">
+        <option value="en">English</option>
+        <option value="ru">Русский</option>
+        <option value="pl">Polski</option>
+      </select>
+    </div>
+
     <div class="page-name-container">
       <div class="page-name">
-        <h1>OpenCodeGen</h1>
+        <h1 data-i18n="title">OpenCodeGen</h1>
       </div>
     </div>
 
     <!-- Выбор языка -->
     <div>
-      <label for="language">Выберите язык:</label>
+      <label for="language" data-i18n="select_language">Выберите язык:</label>
       <select v-model="selectedLanguage">
         <option value="python">Python</option>
         <option value="typescript">TypeScript</option>
@@ -43,14 +55,14 @@
     <div class="editor-container">
       <!-- Редактор для ввода OpenAPI -->
       <div class="input-container">
-        <h3>Введите OpenAPI описание:</h3>
+        <h3 data-i18n="enter_openapi">Введите OpenAPI описание:</h3>
         <textarea id="openapi-input"></textarea>
       </div>
 
       <!-- Редактор для вывода сгенерированного кода -->
       <div class="output-container">
         <div class="output-container-head">
-          <h3>Сгенерированный код:</h3>
+          <h3 data-i18n="generated_code">Сгенерированный код:</h3>
           <!-- Кнопка для копирования в буфер обмена -->
           <div class="buttons-output">
             <button @click="generateZip" style="display: none;" id="generateZip" class="download-button">
@@ -62,42 +74,41 @@
           </div> 
         </div>
         <textarea id="generated-code-output" readonly></textarea>
-              
       </div>
     </div>
 
-    <div v-if="copyMessageVisible" class="copy-message">
+    <div v-if="copyMessageVisible" class="copy-message" data-i18n="code_copied">
       Код скопирован в буфер обмена!
     </div>
 
     <!-- Кнопка для генерации кода -->
-    <button @click="generateCode">Генерировать код</button>
+    <button @click="generateCode" data-i18n="generate_code">Генерировать код</button>
 
     <!-- Сообщения об ошибках -->
-    <div v-if="errorMessageVisible" class="error-message">
+    <div v-if="errorMessageVisible" class="error-message" data-i18n="error_occurred">
       Произошла ошибка!
     </div>
     
-  <div id="drop-zone" 
-    @dragover.prevent="highlight" 
-    @dragleave.prevent="unhighlight" 
-    @drop.prevent="handleDrop">
-  <p>Перетащите сюда ваш OpenAPI-файл .json</p>
-  </div>
-
-  <script src="/static/scripts/app.js" defer></script>
-
-  <!-- Футер -->
-  <footer class="footer">
-    <div class="footer-container">
-      <p>&copy; 2025 OpenCodeGen. Все права защищены.</p>
-      <div class="footer-links">
-        <a href="/about" class="footer-link">О проекте</a>
-        <a href="/contact" class="footer-link">Контакты</a>
-        <a href="https://github.com/FlacSy/OpenCodeGen" class="footer-link" target="_blank">GitHub</a>
-      </div>
+    <div id="drop-zone" 
+      @dragover.prevent="highlight" 
+      @dragleave.prevent="unhighlight" 
+      @drop.prevent="handleDrop">
+      <p data-i18n="drag_drop">Перетащите сюда ваш OpenAPI-файл .json</p>
     </div>
-  </footer>
-  
+
+    <script src="/static/js/app.js" defer></script>
+
+    <!-- Футер -->
+    <footer class="footer">
+      <div class="footer-container">
+        <p data-i18n="copyright">&copy; 2025 OpenCodeGen. Все права защищены.</p>
+        <div class="footer-links">
+          <a href="/about" class="footer-link" data-i18n="about">О проекте</a>
+          <a href="/contact" class="footer-link" data-i18n="contact">Контакты</a>
+          <a href="https://github.com/FlacSy/OpenCodeGen" class="footer-link" target="_blank">GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
